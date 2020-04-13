@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>MapEditorJS</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/photon/0.1.2-alpha/css/photon.css"
+    />
+    <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+    
+    <script src="https://kit.fontawesome.com/ea59ed788b.js" crossorigin="anonymous"></script>
+  </head>
+  <body>
+      <!-- Viewport -->
+      <!-- <div>
+        <div id="canvasview"></div>
+      </div>-->
+        <div class="viewport" id="webgl"></div>
+      
+      
+    <script src="node_modules/three/examples/js/libs/inflate.min.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+      varying vec2 vUv;
+      varying vec3 vColor;
+      void main()
+      {
+        //vColor = pow(color.rgb, vec3(1.0/2.2));
+        vColor = color;
+        // Convert UV to 256pixel range
+        //int pxU = int(uv.x * 255.0);
+        //int pxV = int(uv.y * 255.0);
+        //vUv = vec2(float(pxU)/255.0+(0.5/255.0),float(pxV)/255.0+(0.5/255.0));
+        vUv = vec2(uv.x, uv.y);
+        int posX = int(position.x * 256.0);
+        int posY = int(position.y * 256.0);
+        int posZ = int(position.z * 256.0);
+        vec4 modelViewPosition = modelViewMatrix * vec4(float(posX)/256.0,float(posY)/256.0,float(posZ)/256.0, 1.0);
+        gl_Position = projectionMatrix * modelViewPosition;
+      }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+      uniform sampler2D texture;
+      varying vec2 vUv;
+      varying vec3 vColor;
+      void main()
+      {
+       vec4 textureIn = texture2D(texture, vUv);
+       int tex_r = (int(textureIn.r * 255.0) * int(vColor.r * 255.0))/128;
+       int tex_g = (int(textureIn.g * 255.0) * int(vColor.g * 255.0))/128;
+       int tex_b = (int(textureIn.b * 255.0) * int(vColor.b * 255.0))/128;
+       float texture_a = 1.0;
+       if(textureIn.r == 0.0 && textureIn.g == 0.0 && textureIn.b == 0.0){
+        texture_a = 0.0;
+       }
+
+       gl_FragColor = vec4(float(tex_r)/255.0,float(tex_g)/255.0, float(tex_b)/255.0, texture_a);
+      }
+      </script>
+      <!--<script src="./loader/PSXJSONLoader.js"></script>-->
+    <script>
+      const THREE = require('three');
+      require('three/examples/js/controls/OrbitControls');
+      require('./loader/PSXJSONLoader');
+      var viewport_element = document.getElementById("webgl");
+      
+      var positionInfo = viewport_element.getBoundingClientRect();
+      var height = positionInfo.height;
+      var width = positionInfo.width;
+
+
+      // Internal Stuff
+      // Create a Texture simulating the PlayStation VRAM
+      // The PlayStation VRAM is 1024x512 pixels wide.
+      // When 4bit textures are used, the total size in pixels is actually
+      // 4096x512. Since PCs don't support 4bit paletted textures, we simulate
+      // the different textures by stretching them on the virtual VRAM buffer
+      // so a 4bit textures keeps it's original pixel count, while a
+      // 8bit texture will have double width, and 16bit 4x width.
+      // We repeat pixels to fit.
+      
+      var vbuffer_width = 1024;
+      var vbuffer_vwidth = vbuffer_width * 4;
+      var vbuffer_height = 512;
+      //var vbuffer_data = new Uint8Array(vbuffer_vwidth * vbuffer_height * 4); // RGBA buffer
+      //var vbuffer_texture = new THREE.DataTexture(vbuffer_data, vbuffer_vwidth, vbuffer_height, THREE.RGBAFormat);
+      var vbuffer_canvas = document.createElement('canvas');
+      var vbuffer_ctx = vbuffer_canvas.getContext('2d');
+      vbuffer_canvas.width = vbuffer_vwidth;
+      vbuffer_canvas.height = vbuffer_height;
+
+      vbuffer_ctx.imageSmoothingEnabled = false;
+      vbuffer_ctx.fillStyle = '#808080';
+      vbuffer_ctx.fillRect(0, 0, vbuffer_canvas.width, vbuffer_canvas.height);
+
+      var vbuffer_texture = new THREE.CanvasTexture(vbuffer_canvas);
+
+      vbuffer_texture.magFilter = THREE.NearestFilter;
+      vbuffer_texture.minFilter = THREE.NearestFilter;
+
+      //document.getElementById('canvasview').appendChild(vbuffer_canvas);
+
+      var vramContext = {
+        width: vbuffer_width,
+        vwidth: vbuffer_vwidth,
+        height: vbuffer_height,
+        canvas: vbuffer_canvas,
+        context: vbuffer_ctx,
+        texture: vbuffer_texture
+      };
+
+      //console.log(vbuffer_texture.);
+
+
+      //var vram_texture = {
+      //  width: vbuffer_width,
+      //  height: vbuffer_height,
+      //  vwidth: vbuffer_vwidth,
+      //  rawdata: vbuffer_data,
+      //};
+      
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+      var renderer = new THREE.WebGLRenderer();
+      renderer.setSize( width, height );
+      document.getElementById("webgl").appendChild( renderer.domElement );
+      renderer.outputEncoding = THREE.LinearEncoding;
+      renderer.toneMapping = THREE.LinearToneMapping; 
+      
+      camera.position.z = 5;
+      
+      controls = new THREE.OrbitControls( camera, renderer.domElement );
+      controls.screenSpacePanning = true;
+      //controls.mouseButtons = {LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY };
+      controls.target.set( 0, 0, 0 );
+      controls.update();
+      
+      function generateShader(texture) {
+        var psxUniforms = {
+          texture: { type: 't', value: texture }
+        };
+        var psxMaterial = new THREE.ShaderMaterial({
+          uniforms: psxUniforms,
+          vertexShader: document.getElementById('vertexShader').textContent,
+          vertexColors: THREE.VertexColors,
+          fragmentShader: document.getElementById('fragmentShader').textContent,
+        });
+        
+        psxMaterial.needsUpdate = true;
+        
+        return psxMaterial;
+      }
+      
+      function getTextureMap(material) {
+        var texmap;
+        console.log(material);
+        if(material.map !== null) {
+          texmap = material.map;
+        } else if(material.emissiveMap !== null) {
+          texmap = material.emissiveMap;
+        } else {
+          texmap = null;
+        }
+        console.log(texmap);
+        //LinearEncoding
+        if(texmap !== null){
+          texmap.encoding = THREE.LinearEncoding;
+          texmap.needUpdate = true;
+        }
+        
+        return texmap;
+      }
+      
+      //sceneHelpers = new THREE.Scene();
+      
+      var gridHelper = new THREE.GridHelper( 64, 64 );
+      scene.add( gridHelper );
+      
+      var boundingBox = new THREE.Box3();
+      
+      var selectionBox = new THREE.BoxHelper();
+      selectionBox.material.depthTest = false;
+      selectionBox.material.transparent = true;
+      selectionBox.visible = true;
+      selectionBox.position.set( 0, 0, 0 );
+      scene.add( selectionBox );
+      
+      function animate() {
+        requestAnimationFrame( animate );
+        renderer.render( scene, camera );
+        
+      }
+      animate();
+      
+      var textures = [];
+      var materials = [];
+
+      var loaded_obj;
+      var shaderData = {
+        vertexShader: document.getElementById('vertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShader').textContent,
+      }
+      
+      var loader = new THREE.PSXJSONLoader();
+
+      loader.load('test_data/test_map.json', function ( object ) {
+        console.log("Load Function: ");
+        console.log(object);
+        loaded_obj = object;
+        scene.add(object.collection);
+        
+        selectionBox.setFromObject(loaded_obj.collection.children[1]);
+      }, null, null, shaderData, vramContext );
+      
+      window.addEventListener( 'resize', onWindowResize, false );
+
+      function onWindowResize(){
+
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+
+          renderer.setSize( window.innerWidth, window.innerHeight );
+
+      }
+
+      require('electron').ipcRenderer.on('view-commands', (event, message) => {
+        console.log(message);
+        if(message === 'toggle-grid-on'){
+          gridHelper.visible = true;
+        }
+        if(message === 'toggle-grid-off'){
+          gridHelper.visible = false;
+        }
+      });
+      
+    </script>
+  </body>
+</html>

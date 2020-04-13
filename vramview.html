@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>VRAM Viewer</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/photon/0.1.2-alpha/css/photon.css"
+    />
+    <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+    
+    <script src="https://kit.fontawesome.com/ea59ed788b.js" crossorigin="anonymous"></script>
+  </head>
+  <body>
+      <!-- Viewport -->
+      <div class="viewport" id="webgl"></div>
+    <script src="node_modules/three/examples/js/libs/inflate.min.js"></script>    
+    <script>
+      const THREE = require('three');
+      require('./loader/PSXJSONLoader');
+      var viewport_element = document.getElementById("webgl");
+      var positionInfo = viewport_element.getBoundingClientRect();
+      var height = positionInfo.height;
+      var width = positionInfo.width;
+      
+      var scene = new THREE.Scene();
+      scene.background = new THREE.Color( 0x808080 ); // UPDATED
+      var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+      var renderer = new THREE.WebGLRenderer();
+      renderer.setSize( width, height );
+      document.getElementById("webgl").appendChild( renderer.domElement );
+      renderer.outputEncoding = THREE.LinearEncoding;
+      renderer.toneMapping = THREE.LinearToneMapping; 
+      
+      camera.position.z = 5;
+      
+      function animate() {
+        requestAnimationFrame( animate );
+        renderer.render( scene, camera );
+        
+      }
+      animate();
+      
+      window.addEventListener( 'resize', onWindowResize, false );
+
+      function onWindowResize(){
+
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+
+          renderer.setSize( window.innerWidth, window.innerHeight );
+
+      }
+      
+    </script>
+  </body>
+</html>
