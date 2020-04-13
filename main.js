@@ -1,5 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
-
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
@@ -40,6 +39,7 @@ function createWindow () {
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
     win = null;
+    vramwindow = null;
   });
 }
 
@@ -78,7 +78,7 @@ const mainMenuTemplate = [
           vramwindow = new BrowserWindow({
             parent: win,
             width: 1024,
-            height: 512,
+            height: 512,    
             show: false,
             skipTaskbar: true,
             title: 'VRAM Viewer',
@@ -87,10 +87,13 @@ const mainMenuTemplate = [
               nodeIntegration: true
             }
           });
-          vramwindow.removeMenu();
+          //vramwindow.removeMenu();
           vramwindow.loadFile('vramview.html');
           vramwindow.once('ready-to-show', () => {
             vramwindow.show();
+          });
+          vramwindow.on('closed', () => {
+            vramwindow = null;
           });
         }
       },
@@ -150,3 +153,13 @@ app.on('activate', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+ipcMain.on('request-vram-contents', (event, message) => {
+  console.log('request vram update called');
+  win.webContents.send('get-vram-contents');
+});
+
+ipcMain.on('update-vram-contents', (event, data) => {
+  if(vramwindow !== undefined){
+    vramwindow.webContents.send('vram-update', data);
+  }
+});

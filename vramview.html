@@ -10,14 +10,13 @@
     />
     <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
-    
-    <script src="https://kit.fontawesome.com/ea59ed788b.js" crossorigin="anonymous"></script>
   </head>
   <body>
       <!-- Viewport -->
       <div class="viewport" id="webgl"></div>
     <script src="node_modules/three/examples/js/libs/inflate.min.js"></script>    
     <script>
+      const { ipcRenderer } = require('electron');
       const THREE = require('three');
       require('./loader/PSXJSONLoader');
       var viewport_element = document.getElementById("webgl");
@@ -27,15 +26,34 @@
       
       var scene = new THREE.Scene();
       scene.background = new THREE.Color( 0x808080 ); // UPDATED
-      var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+      //var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+      var camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
       var renderer = new THREE.WebGLRenderer();
       renderer.setSize( width, height );
       document.getElementById("webgl").appendChild( renderer.domElement );
       renderer.outputEncoding = THREE.LinearEncoding;
       renderer.toneMapping = THREE.LinearToneMapping; 
-      
-      camera.position.z = 5;
-      
+
+      var geometry = new THREE.PlaneGeometry( 1024, 512, 16, 2);
+      var material = new THREE.MeshBasicMaterial( {color: 0xFFFFFF, side: THREE.DoubleSide} );
+
+
+      var vbuffer_canvas = document.createElement('canvas');
+      var vbuffer_ctx = vbuffer_canvas.getContext('2d');
+      vbuffer_canvas.width = 4096;
+      vbuffer_canvas.height = 512;
+      vbuffer_ctx.imageSmoothingEnabled = false;
+      vbuffer_ctx.fillStyle = '#808080';
+      vbuffer_ctx.fillRect(0, 0, vbuffer_canvas.width, vbuffer_canvas.height);
+      var vbuffer_texture = new THREE.CanvasTexture(vbuffer_canvas);
+
+      material.map = vbuffer_texture;
+      material.flatShading = true;
+      var plane = new THREE.Mesh( geometry, material );
+      scene.add( plane );
+            
+      camera.position.z = 50;
+
       function animate() {
         requestAnimationFrame( animate );
         renderer.render( scene, camera );
@@ -53,6 +71,17 @@
           renderer.setSize( window.innerWidth, window.innerHeight );
 
       }
+
+      ipcRenderer.on('vram-update', (event, data) => {
+        console.log(data);
+        var clamped = new Uint8ClampedArray( data.data.buffer );
+        let vramcontents = new ImageData(clamped, data.width, data.height);
+        vbuffer_ctx.putImageData(vramcontents, 0,0);
+        vbuffer_texture.needsUpdate = true;
+      })
+
+
+      ipcRenderer.send('request-vram-contents');
       
     </script>
   </body>

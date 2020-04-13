@@ -11,7 +11,6 @@
     <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
     
-    <script src="https://kit.fontawesome.com/ea59ed788b.js" crossorigin="anonymous"></script>
   </head>
   <body>
       <!-- Viewport -->
@@ -61,6 +60,7 @@
       </script>
       <!--<script src="./loader/PSXJSONLoader.js"></script>-->
     <script>
+      const { ipcRenderer } = require('electron');
       const THREE = require('three');
       require('three/examples/js/controls/OrbitControls');
       require('./loader/PSXJSONLoader');
@@ -108,7 +108,12 @@
         height: vbuffer_height,
         canvas: vbuffer_canvas,
         context: vbuffer_ctx,
-        texture: vbuffer_texture
+        texture: vbuffer_texture,
+        update: (image, x, y, w, h) => {
+          this.context.drawImage(texture.image, x, y, w, h);
+          this.vramContext.texture.needsUpdate = true;
+          ipcRenderer.send('update-vram-contents', 'test');
+        }
       };
 
       //console.log(vbuffer_texture.);
@@ -225,7 +230,7 @@
 
       }
 
-      require('electron').ipcRenderer.on('view-commands', (event, message) => {
+      ipcRenderer.on('view-commands', (event, message) => {
         console.log(message);
         if(message === 'toggle-grid-on'){
           gridHelper.visible = true;
@@ -233,6 +238,16 @@
         if(message === 'toggle-grid-off'){
           gridHelper.visible = false;
         }
+      });
+
+      ipcRenderer.on('get-vram-contents', (event, message) => {
+        console.log('inside index.html', message);
+        let VramData = {
+          width: vramContext.vwidth,
+          height: vramContext.height,
+          data: vramContext.context.getImageData(0,0,vramContext.vwidth,vramContext.height).data
+        };
+        ipcRenderer.send('update-vram-contents', VramData);
       });
       
     </script>

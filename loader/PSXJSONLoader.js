@@ -87,11 +87,11 @@ THREE.PSXJSONLoader = ( function () {
             //  console.log("TEXTURE IMAGE DATA?");
             //  console.log(texture);
             //  console.log("TEXTURE IMAGE DATA?");
+              //vramContext.update(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
               vramContext.context.drawImage(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
               console.log("draw image", texture.image);
               console.log(texture.image.width, texture.image.height);
               vramContext.texture.needsUpdate = true;
-
               console.log(vramContext.canvas);
 
             } );
