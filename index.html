@@ -22,11 +22,11 @@
       <div class="columns is-fullheight">
         <div class="menu column is-2 is-sidebar-menu is-hidden-mobile">
           <p class="menu-label">
-            Placeholder
+            Room List
           </p>
           <ul class="menu-list">
-            <li><a>Placeholder</a></li>
-            <li><a>Placeholder</a></li>
+            <li><a>Room 0</a></li>
+            <li><a>Room 1</a></li>
           </ul>
           <p class="menu-label">
               Placeholder
@@ -117,6 +117,8 @@
       var materials = [];
 
       var loaded_obj;
+
+      var world_subdiv = 256; // int 256 = float 1.0 
 
       // Internal Stuff
       // Create a Texture simulating the PlayStation VRAM
@@ -255,6 +257,8 @@
       scene.add( gridHelper );
       
       var boundingBox = new THREE.Box3();
+
+      var lockSelection = false;
       
       var selectionBox = new THREE.BoxHelper();
       selectionBox.material.depthTest = false;
@@ -266,8 +270,17 @@
       transformControl = new THREE.TransformControls( camera, canvas );
       //transformControl.addEventListener( 'change', renderer );
       transformControl.addEventListener( 'dragging-changed', function (event) {
-        selectionBox.setFromObject( selectedObject );
+        
         controls.enabled = !event.value;
+        lockSelection = event.value;
+        console.log(lockSelection);
+        if(!event.value){
+          // Scale Position to integer precision
+          selectedObject.position.x = parseInt(selectedObject.position.x*world_subdiv) / world_subdiv;
+          selectedObject.position.y = parseInt(selectedObject.position.y*world_subdiv) / world_subdiv;
+          selectedObject.position.z = parseInt(selectedObject.position.z*world_subdiv) / world_subdiv;
+        }
+        selectionBox.setFromObject( selectedObject );
       });
 
       scene.add(transformControl);
@@ -304,6 +317,15 @@
       //function onDocumentMouseMove( event ) {
       function onDocumentMouseClick( event ) {
         event.preventDefault();
+
+        if(event.button !== 0) return;
+
+        if(lockSelection) return;
+
+        if ( selectedObject ) {
+          setObjectSelectedState( selectedObject, 0.0 );
+          selectedObject = null;
+        }
         
         var intersects = getIntersects( event.layerX, event.layerY );
 
@@ -313,9 +335,7 @@
           } )[ 0 ];
 
           if ( res && res.object ) {
-            if ( selectedObject ) {
-              setObjectSelectedState( selectedObject, 0.0 );
-            }
+
             selectedObject = res.object;
             transformControl.attach(selectedObject);
             //selectedObject.material.uniforms.selected.value = 1.0;
@@ -372,7 +392,7 @@
       var mouseVector = new THREE.Vector3();
       
       function setObjectSelectedState( obj, val ) {
-        console.log(obj.material);
+        //console.log(obj.material);
         if(obj.material){
           //obj.material.wireframe = (val > 0.0) ? true : false;
           if(obj.material.uniforms.selected){

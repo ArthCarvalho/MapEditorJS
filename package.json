@@ -6,7 +6,8 @@
   "scripts": {
     "css-build": "node-sass --omit-source-map-url sass/style.sass css/style.css",
     "css-watch": "npm run css-build -- --watch",
-    "start": "npm run css-build && electron ."
+    "electron-start": "electron .",
+    "start": "npm run css-build && npm run electron-start"
   },
   "author": "Arthur Carvalho de Souza Lima",
   "license": "ISC",

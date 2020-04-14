@@ -1,4 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { dialog } = require('electron');
+const THREE = require('three');
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win;
@@ -6,6 +8,24 @@ let vramwindow;
 let menu;
 
 let win_contents;
+
+var sceneProjectFliename = '';
+var sceneProject = {
+  name: 'Untitled Scene',
+  rooms: [],
+  models: {},
+  textures: {}
+}
+
+var newSceneProject = {
+  name: 'Untitled Scene',
+  rooms: [{
+    label: 'Room 0',
+    position_offset: THREE.Vector3()
+  }],
+  models: {},
+  textures: {}
+};
 
 function createWindow () {
   // Create the browser window.
@@ -43,17 +63,108 @@ function createWindow () {
   });
 }
 
+// File Functions
+// Open File
+var openSceneProjectDialog = () => {
+  dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: 'Scene Project Files', extensions: ['scenejson'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  }).then(result => {
+    console.log('Open Scene Project');
+    console.log(result.canceled);
+    console.log(result.filePaths);
+  }).catch(err => {
+    console.log(err);
+  });
+}
+// Save Project
+var saveSceneProjectAsDialog = () => {
+  return dialog.showSaveDialog({
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+    filters: [
+      { name: 'Scene Project Files', extensions: ['scenejson'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  }).then(result => {
+    console.log('Save Scene Project');
+    console.log(result.canceled);
+    console.log(result.filePath);
+    if(!result.canceled){
+      sceneProjectFliename = result.filePath;
+    }
+  }).catch(err => {
+    console.log(err);
+  });
+}
+var saveSceneProjectDialog = () => {
+  console.log('project filename:',sceneProjectFliename);
+  if(sceneProjectFliename == ''){
+    saveSceneProjectAsDialog();
+  }
+}
+// Import Model
+var importModelDialog = () => {
+  dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'PSXJSON Models', extensions: ['json'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  }).then(result => {
+    console.log('Import Models');
+    console.log(result.canceled);
+    console.log(result.filePaths);
+  }).catch(err => {
+    console.log(err);
+  });
+}
+
+var exportSceneBinaryDialog = () => {
+  dialog.showSaveDialog({
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+    filters: [
+      { name: 'PSX Scene Files', extensions: ['scn'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  }).then(result => {
+    console.log('Export Scene Binary');
+    console.log(result.canceled);
+    console.log(result.filePath);
+  }).catch(err => {
+    console.log(err);
+  });
+}
 const mainMenuTemplate = [
   {
     label: 'File',
     submenu: [
-      { label: 'New' },
-      { label: 'Open' },
-      { label: 'Save' },
-      { label: 'Save As...' },
+      { label: 'New Scene' },
+      {
+        label: 'Open Scene',
+        click: openSceneProjectDialog
+      },
+      {
+        label: 'Save Scene',
+        click: saveSceneProjectDialog
+      },
+      {
+        label: 'Save Scene As...',
+        click: saveSceneProjectAsDialog
+      },
       { type: 'separator' },
-      { label: 'Import Model' },
+      {
+        label: 'Import Model',
+        click: importModelDialog
+      },
       { label: 'Export Model' },
+      { type: 'separator' },
+      {
+        label: 'Export Scene Binary',
+        click: exportSceneBinaryDialog
+      },
       { type: 'separator' },
       { role: 'quit' }
     ]
