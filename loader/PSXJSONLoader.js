@@ -62,7 +62,7 @@ THREE.PSXJSONLoader = ( function () {
       json.data.forEach( object => {
         object.materials.forEach( s_material => {
           if( unified_materials.get(s_material.name) === undefined ){
-            console.log(`generating material ${s_material.name}`);
+            //console.log(`generating material ${s_material.name}`);
 
             
             // Get Material's texture vram position
@@ -80,7 +80,7 @@ THREE.PSXJSONLoader = ( function () {
               wmult = 4;
             }
 
-            console.log(s_material);
+            //console.log(s_material);
 
 
             var texture = new THREE.TextureLoader().load( s_material.texture, (texture) => {
@@ -89,10 +89,10 @@ THREE.PSXJSONLoader = ( function () {
             //  console.log("TEXTURE IMAGE DATA?");
               //vramContext.update(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
               vramContext.context.drawImage(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
-              console.log("draw image", texture.image);
-              console.log(texture.image.width, texture.image.height);
+              //console.log("draw image", texture.image);
+              //console.log(texture.image.width, texture.image.height);
               vramContext.texture.needsUpdate = true;
-              console.log(vramContext.canvas);
+              //console.log(vramContext.canvas);
 
             } );
             //var texImage = THREE.ImageLoader().load(s_material.texture, (image) => {
@@ -104,7 +104,11 @@ THREE.PSXJSONLoader = ( function () {
             //texture.magFilter = THREE.NearestFilter;
             //texture.minFilter = THREE.NearestFilter;
             var material = new THREE.ShaderMaterial( {
-              uniforms: { texture: { type: 't', value: vramContext.texture } },
+              uniforms: {
+                texture: { type: 't', value: vramContext.texture },
+                selected: { value: 0.0 },
+                selectedColor: { value: new THREE.Color( 0xFF8000 ) }
+              },
               vertexShader: shaderData.vertexShader,
               vertexColors: THREE.VertexColors,
               fragmentShader: shaderData.fragmentShader
@@ -161,8 +165,10 @@ THREE.PSXJSONLoader = ( function () {
           
           var mesh = new THREE.Mesh( geometry );
           mesh.name = `${object_group.name}#${mat.name}`;
-          
-          mesh.material = unified_materials.get(mat.name).material;
+          var material_base = unified_materials.get(mat.name).material;
+          mesh.material = material_base.clone();
+          mesh.material.uniforms.texture = material_base.uniforms.texture;
+
           
           object_intermediaries.push(mesh_intermediaries);
           
@@ -257,7 +263,7 @@ THREE.PSXJSONLoader = ( function () {
     },
     generateUvCoords: function ( data_indices, uv_data, vramContext, material ) {
       var uvcoords = [];
-      console.log("UV GEN MAT", material.name);
+      //console.log("UV GEN MAT", material.name);
       
       var vpos_args = material.vpos.split('x');
       vpos_args[0] = (parseInt(vpos_args[0]) * 4) / vramContext.vwidth;

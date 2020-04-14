@@ -3,17 +3,18 @@
   <head>
     <meta charset="UTF-8">
     <title>VRAM Viewer</title>
-    <link rel="stylesheet" type="text/css" href="style.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/photon/0.1.2-alpha/css/photon.css"
-    />
+    <!--<link rel="stylesheet" type="text/css" href="node_modules/bulma/css/bulma.css" />
+    <link rel="stylesheet" type="text/css" href="style.css" />-->
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
     <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
   </head>
   <body>
-      <!-- Viewport -->
-      <div class="viewport" id="webgl"></div>
+    <!-- Viewport -->
+    <div class="vram-container">
+      <div class="vram-viewport" id="webgl"></div>
+      <div class="vram-toolbar">BOTTOM BAR</div>
+    </div>
     <script src="node_modules/three/examples/js/libs/inflate.min.js"></script>    
     <script>
       const { ipcRenderer } = require('electron');
@@ -64,11 +65,11 @@
       window.addEventListener( 'resize', onWindowResize, false );
 
       function onWindowResize(){
+        let positionInfo = viewport_element.getBoundingClientRect();
+          //camera.aspect = window.innerWidth / window.innerHeight;
+          //camera.updateProjectionMatrix();
 
-          camera.aspect = window.innerWidth / window.innerHeight;
-          camera.updateProjectionMatrix();
-
-          renderer.setSize( window.innerWidth, window.innerHeight );
+          renderer.setSize( positionInfo.width, positionInfo.height );
 
       }
 

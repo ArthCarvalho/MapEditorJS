@@ -75,26 +75,28 @@ const mainMenuTemplate = [
       { 
         label: 'View VRAM',
         click: function(){
-          vramwindow = new BrowserWindow({
-            parent: win,
-            width: 1024,
-            height: 512,    
-            show: false,
-            skipTaskbar: true,
-            title: 'VRAM Viewer',
-            autoHideMenuBar: true,
-            webPreferences: {
-              nodeIntegration: true
-            }
-          });
-          //vramwindow.removeMenu();
-          vramwindow.loadFile('vramview.html');
-          vramwindow.once('ready-to-show', () => {
-            vramwindow.show();
-          });
-          vramwindow.on('closed', () => {
-            vramwindow = null;
-          });
+          if(!vramwindow){
+            vramwindow = new BrowserWindow({
+              parent: win,
+              width: 1024,
+              height: 640,    
+              show: false,
+              skipTaskbar: true,
+              title: 'VRAM Viewer',
+              autoHideMenuBar: true,
+              webPreferences: {
+                nodeIntegration: true
+              }
+            });
+            //vramwindow.removeMenu();
+            vramwindow.loadFile('vramview.html');
+            vramwindow.once('ready-to-show', () => {
+              vramwindow.show();
+            });
+            vramwindow.on('closed', () => {
+              vramwindow = null;
+            });
+          }
         }
       },
       { type: 'separator' },

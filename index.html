@@ -3,11 +3,8 @@
   <head>
     <meta charset="UTF-8">
     <title>MapEditorJS</title>
-    <link rel="stylesheet" type="text/css" href="style.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/photon/0.1.2-alpha/css/photon.css"
-    />
+    <!--<link rel="stylesheet" type="text/css" href="node_modules/bulma/css/bulma.css" />-->
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
     <!-- https://electronjs.org/docs/tutorial/security#csp-meta-tag -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
     
@@ -17,9 +14,50 @@
       <!-- <div>
         <div id="canvasview"></div>
       </div>-->
-        <div class="viewport" id="webgl"></div>
-      
-      
+      <nav class="navbar has-background-dark" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+          <!-- navbar items, navbar burger... -->
+        </div>
+      </nav>
+      <div class="columns is-fullheight">
+        <div class="menu column is-2 is-sidebar-menu is-hidden-mobile">
+          <p class="menu-label">
+            Placeholder
+          </p>
+          <ul class="menu-list">
+            <li><a>Placeholder</a></li>
+            <li><a>Placeholder</a></li>
+          </ul>
+          <p class="menu-label">
+              Placeholder
+          </p>
+          <ul class="menu-list">
+            <li><a>Team Placeholder</a></li>
+            <li>
+              <a class="is-active">Placeholder</a>
+              <ul>
+                <li><a>Placeholder</a></li>
+                <li><a>Placeholder</a></li>
+                <li><a>Placeholder</a></li>
+              </ul>
+            </li>
+            <li><a>Placeholder</a></li>
+            <li><a>Placeholder</a></li>
+            <li><a>Placeholder</a></li>
+          </ul>
+          <p class="menu-label">
+              Placeholder
+          </p>
+          <ul class="menu-list">
+            <li><a>Placeholder</a></li>
+            <li><a>Placeholder</a></li>
+            <li><a>Placeholder</a></li>
+          </ul>
+        </div>
+        <div class="column">
+          <div class="main-viewport" id="editor-viewport"></div>
+        </div>
+      </div>
     <script src="node_modules/three/examples/js/libs/inflate.min.js"></script>
     <script type="x-shader/x-vertex" id="vertexShader">
       varying vec2 vUv;
@@ -42,6 +80,8 @@
     </script>
     <script type="x-shader/x-fragment" id="fragmentShader">
       uniform sampler2D texture;
+      uniform float selected;
+      uniform vec3 selectedColor;
       varying vec2 vUv;
       varying vec3 vColor;
       void main()
@@ -55,7 +95,9 @@
         texture_a = 0.0;
        }
 
-       gl_FragColor = vec4(float(tex_r)/255.0,float(tex_g)/255.0, float(tex_b)/255.0, texture_a);
+       vec3 normalColor = vec3(float(tex_r)/255.0,float(tex_g)/255.0, float(tex_b)/255.0);
+       vec3 finalColor = mix(normalColor, selectedColor, selected);
+       gl_FragColor = vec4(finalColor.rgb, texture_a);
       }
       </script>
       <!--<script src="./loader/PSXJSONLoader.js"></script>-->
@@ -63,13 +105,18 @@
       const { ipcRenderer } = require('electron');
       const THREE = require('three');
       require('three/examples/js/controls/OrbitControls');
+      require('three/examples/js/controls/TransformControls');
       require('./loader/PSXJSONLoader');
-      var viewport_element = document.getElementById("webgl");
+      var viewport_element = document.getElementById("editor-viewport");
       
-      var positionInfo = viewport_element.getBoundingClientRect();
-      var height = positionInfo.height;
-      var width = positionInfo.width;
+      //var positionInfo = viewport_element.getBoundingClientRect();
+      //var height = positionInfo.height;
+      //var width = positionInfo.width;
 
+      var textures = [];
+      var materials = [];
+
+      var loaded_obj;
 
       // Internal Stuff
       // Create a Texture simulating the PlayStation VRAM
@@ -92,8 +139,13 @@
       vbuffer_canvas.height = vbuffer_height;
 
       vbuffer_ctx.imageSmoothingEnabled = false;
-      vbuffer_ctx.fillStyle = '#808080';
+      vbuffer_ctx.fillStyle = '#008080';
       vbuffer_ctx.fillRect(0, 0, vbuffer_canvas.width, vbuffer_canvas.height);
+
+      vbuffer_ctx.fillStyle = '#008000';
+      vbuffer_ctx.fillRect(2048, 0, 2048, 240);
+      vbuffer_ctx.fillStyle = '#808000';
+      vbuffer_ctx.fillRect(2048, 256, 2048, 240);
 
       var vbuffer_texture = new THREE.CanvasTexture(vbuffer_canvas);
 
@@ -116,6 +168,10 @@
         }
       };
 
+      var selectedObject = null;
+
+      
+
       //console.log(vbuffer_texture.);
 
 
@@ -126,27 +182,44 @@
       //  rawdata: vbuffer_data,
       //};
       
-      var scene = new THREE.Scene();
-      var camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
       var renderer = new THREE.WebGLRenderer();
-      renderer.setSize( width, height );
-      document.getElementById("webgl").appendChild( renderer.domElement );
+
+      const canvas = renderer.domElement;
+      canvas.className = 'main-viewport-canvas';
+      document.getElementById("editor-viewport").appendChild( canvas );
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      renderer.setSize(width, height, false);
+
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(75, width/height, 0.1, 1000);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+
+      //renderer.setSize( width, height, false );
+      
       renderer.outputEncoding = THREE.LinearEncoding;
       renderer.toneMapping = THREE.LinearToneMapping; 
-      
+
       camera.position.z = 5;
       
-      controls = new THREE.OrbitControls( camera, renderer.domElement );
+      controls = new THREE.OrbitControls( camera, canvas );
       controls.screenSpacePanning = true;
       //controls.mouseButtons = {LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.DOLLY };
       controls.target.set( 0, 0, 0 );
       controls.update();
+
+      
       
       function generateShader(texture) {
         var psxUniforms = {
-          texture: { type: 't', value: texture }
+          texture: { type: 't', value: texture },
+          selected: { value: 0.0 },
+          selectedColor: { value: new THREE.Color(rgb(255, 180, 38)) }
         };
         var psxMaterial = new THREE.ShaderMaterial({
+          transparent: true,
+          alphaTest: 0.5,
           uniforms: psxUniforms,
           vertexShader: document.getElementById('vertexShader').textContent,
           vertexColors: THREE.VertexColors,
@@ -160,7 +233,7 @@
       
       function getTextureMap(material) {
         var texmap;
-        console.log(material);
+        //console.log(material);
         if(material.map !== null) {
           texmap = material.map;
         } else if(material.emissiveMap !== null) {
@@ -168,7 +241,7 @@
         } else {
           texmap = null;
         }
-        console.log(texmap);
+        //console.log(texmap);
         //LinearEncoding
         if(texmap !== null){
           texmap.encoding = THREE.LinearEncoding;
@@ -178,9 +251,7 @@
         return texmap;
       }
       
-      //sceneHelpers = new THREE.Scene();
-      
-      var gridHelper = new THREE.GridHelper( 64, 64 );
+      var gridHelper = new THREE.GridHelper( 254, 254 );
       scene.add( gridHelper );
       
       var boundingBox = new THREE.Box3();
@@ -191,6 +262,15 @@
       selectionBox.visible = true;
       selectionBox.position.set( 0, 0, 0 );
       scene.add( selectionBox );
+
+      transformControl = new THREE.TransformControls( camera, canvas );
+      //transformControl.addEventListener( 'change', renderer );
+      transformControl.addEventListener( 'dragging-changed', function (event) {
+        selectionBox.setFromObject( selectedObject );
+        controls.enabled = !event.value;
+      });
+
+      scene.add(transformControl);
       
       function animate() {
         requestAnimationFrame( animate );
@@ -199,10 +279,7 @@
       }
       animate();
       
-      var textures = [];
-      var materials = [];
-
-      var loaded_obj;
+      
       var shaderData = {
         vertexShader: document.getElementById('vertexShader').textContent,
         fragmentShader: document.getElementById('fragmentShader').textContent,
@@ -217,16 +294,57 @@
         scene.add(object.collection);
         
         selectionBox.setFromObject(loaded_obj.collection.children[1]);
+
+        selectedObject = loaded_obj.collection.children[1];
       }, null, null, shaderData, vramContext );
       
       window.addEventListener( 'resize', onWindowResize, false );
+      window.addEventListener( "mousedown", onDocumentMouseClick, false );
+
+      //function onDocumentMouseMove( event ) {
+      function onDocumentMouseClick( event ) {
+        event.preventDefault();
+        
+        var intersects = getIntersects( event.layerX, event.layerY );
+
+        if ( intersects.length > 0 ) {
+          var res = intersects.filter( function ( res ) {
+            return res && res.object;
+          } )[ 0 ];
+
+          if ( res && res.object ) {
+            if ( selectedObject ) {
+              setObjectSelectedState( selectedObject, 0.0 );
+            }
+            selectedObject = res.object;
+            transformControl.attach(selectedObject);
+            //selectedObject.material.uniforms.selected.value = 1.0;
+            setObjectSelectedState( selectedObject, 0.5 );
+            selectionBox.setFromObject( selectedObject );
+            selectionBox.update();
+          }
+        }
+      }
+
 
       function onWindowResize(){
-
-          camera.aspect = window.innerWidth / window.innerHeight;
+        //positionInfo.width positionInfo.height
+        //camera.aspect = window.innerWidth / window.innerHeight;
+        //let posinfo = document.getElementById('editor-viewport').getBoundingClientRect();
+        //const canvas = renderer.domElement;
+        //console.log('new w/h:',posinfo.width, posinfo.height);
+        //camera.aspect = posinfo.width / posinfo.height;
+        //camera.updateProjectionMatrix();
+        //renderer.setSize( posinfo.width, posinfo.height, false );
+        //renderer.setSize( window.innerWidth, window.innerHeight );
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        if (canvas.width !== width || canvas.height !== height) {
+          renderer.setSize(width, height, false);
+          camera.aspect = width / height;
           camera.updateProjectionMatrix();
-
-          renderer.setSize( window.innerWidth, window.innerHeight );
+        }
 
       }
 
@@ -249,7 +367,41 @@
         };
         ipcRenderer.send('update-vram-contents', VramData);
       });
+
+      var raycaster = new THREE.Raycaster();
+      var mouseVector = new THREE.Vector3();
       
+      function setObjectSelectedState( obj, val ) {
+        console.log(obj.material);
+        if(obj.material){
+          //obj.material.wireframe = (val > 0.0) ? true : false;
+          if(obj.material.uniforms.selected){
+            obj.material.uniforms.selected.value = val;
+          }
+        }
+        
+      }
+
+      function getIntersects( x, y ) {
+
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+
+        x = ( x / width ) * 2 - 1;
+        y = - ( y / height ) * 2 + 1;
+
+        mouseVector.set( x, y, 0.5 );
+        raycaster.setFromCamera( mouseVector, camera );
+        if(loaded_obj){
+          return raycaster.intersectObject( loaded_obj.collection, true );
+        } else {
+          return;
+        }
+        
+
+      }
+            
     </script>
   </body>
 </html>
