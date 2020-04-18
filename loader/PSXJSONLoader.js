@@ -80,45 +80,52 @@ THREE.PSXJSONLoader = ( function () {
               wmult = 4;
             }
 
+            var texture_name = s_material.texture;
+            console.log('texture name: ',texture_name);
+
             //console.log(s_material);
 
+            if(texture_name !== ''){
+              console.log('Material Has Texture!');
+              var texture = new THREE.TextureLoader().load( s_material.texture, (texture) => {
+                vramContext.context.drawImage(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
+                vramContext.texture.needsUpdate = true;
 
-            var texture = new THREE.TextureLoader().load( s_material.texture, (texture) => {
-            //  console.log("TEXTURE IMAGE DATA?");
-            //  console.log(texture);
-            //  console.log("TEXTURE IMAGE DATA?");
-              //vramContext.update(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
-              vramContext.context.drawImage(texture.image, parseInt(vpos_args[0])*4, parseInt(vpos_args[1]), texture.image.width * wmult, texture.image.height);
-              //console.log("draw image", texture.image);
-              //console.log(texture.image.width, texture.image.height);
-              vramContext.texture.needsUpdate = true;
-              //console.log(vramContext.canvas);
-
-            } );
-            //var texImage = THREE.ImageLoader().load(s_material.texture, (image) => {
-            //  console.log('this is image');
-            //  console.log(image);
-            //  vramContext.context.drawImage(image);
-            //});
-
-            //texture.magFilter = THREE.NearestFilter;
-            //texture.minFilter = THREE.NearestFilter;
-            var material = new THREE.ShaderMaterial( {
-              uniforms: {
-                texture: { type: 't', value: vramContext.texture },
-                selected: { value: 0.0 },
-                selectedColor: { value: new THREE.Color( 0xFF8000 ) }
-              },
-              vertexShader: shaderData.vertexShader,
-              vertexColors: THREE.VertexColors,
-              fragmentShader: shaderData.fragmentShader
-            } );
-            var mat = {
-              texture,
-              material,
-              src: s_material
-            };
-            unified_materials.set(s_material.name, mat);
+              } );
+              var material = new THREE.ShaderMaterial( {
+                uniforms: {
+                  texture: { type: 't', value: vramContext.texture },
+                  selected: { value: 0.0 },
+                  selectedColor: { value: new THREE.Color( 0xFF8000 ) }
+                },
+                vertexShader: shaderData.vertexShader,
+                vertexColors: THREE.VertexColors,
+                fragmentShader: shaderData.fragmentShader
+              } );
+              var mat = {
+                texture,
+                material,
+                src: s_material
+              };
+              unified_materials.set(s_material.name, mat);
+            } else {
+              console.log('Material Has No Texture!');
+              // Gouraud Shading Only Material
+              var material = new THREE.ShaderMaterial( {
+                uniforms: {
+                  selected: { value: 0.0 },
+                  selectedColor: { value: new THREE.Color( 0xFF8000 ) }
+                },
+                vertexShader: shaderData.vertexShaderNoTex,
+                vertexColors: THREE.VertexColors,
+                fragmentShader: shaderData.fragmentShaderNoTex
+              } );
+              var mat = {
+                material,
+                src: s_material
+              };
+              unified_materials.set(s_material.name, mat);
+            }
           }
         })
       });
@@ -283,17 +290,17 @@ THREE.PSXJSONLoader = ( function () {
       data_indices.forEach( ( face, index ) => {
         if( face.length === 3 ) {
           trimap.forEach( idx => {
-            let face_uv_u0 = Math.floor(uv_data[face[idx]].u * tex_width) / (4096.0 / umult);
-            let face_uv_v0 = 1.0 - ((Math.ceil((1.0 - uv_data[face[idx]].v) * tex_height)) / vramContext.height);
+            let face_uv_u0 = (Math.floor(uv_data[face[idx]].u * tex_width) / (4096.0 / umult));
+            let face_uv_v0 = (1.0 - ((Math.ceil((1.0 - uv_data[face[idx]].v) * tex_height)) / vramContext.height));
             //console.log(uv_data[face[idx]].u);
-            uvcoords.push( vpos_args[0] + face_uv_u0, vpos_args[1] + face_uv_v0 );
+            uvcoords.push( vpos_args[0] + face_uv_u0 + (0.5/(4096.0 / umult)), vpos_args[1] + face_uv_v0  + (0.5 / 512.0));
           });
         } else {
           
           quadmap.forEach( idx => {
             let face_uv_u1 = Math.floor(uv_data[face[idx]].u * tex_width) / (4096.0 / umult);
             let face_uv_v1 =  1.0 - ((Math.ceil((1.0 - uv_data[face[idx]].v) * tex_height)) / vramContext.height);
-            uvcoords.push( vpos_args[0] + face_uv_u1, vpos_args[1] + face_uv_v1 );
+            uvcoords.push( vpos_args[0] + face_uv_u1 +  (0.5/(4096.0 / umult)), vpos_args[1] + face_uv_v1  + (0.5 / 512.0));
           });
         }
       });

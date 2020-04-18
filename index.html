@@ -70,11 +70,12 @@
         //int pxU = int(uv.x * 255.0);
         //int pxV = int(uv.y * 255.0);
         //vUv = vec2(float(pxU)/255.0+(0.5/255.0),float(pxV)/255.0+(0.5/255.0));
-        vUv = vec2(uv.x, uv.y);
-        int posX = int(position.x * 256.0);
-        int posY = int(position.y * 256.0);
-        int posZ = int(position.z * 256.0);
-        vec4 modelViewPosition = modelViewMatrix * vec4(float(posX)/256.0,float(posY)/256.0,float(posZ)/256.0, 1.0);
+        vUv = uv;
+        //int posX = int(position.x * 256.0);
+        //int posY = int(position.y * 256.0);
+        //int posZ = int(position.z * 256.0);
+        //vec4 modelViewPosition = modelViewMatrix * vec4(float(posX)/256.0,float(posY)/256.0,float(posZ)/256.0, 1.0);
+        vec4 modelViewPosition = modelViewMatrix * vec4(position.xyz, 1.0);
         gl_Position = projectionMatrix * modelViewPosition;
       }
     </script>
@@ -94,6 +95,34 @@
        if(textureIn.r == 0.0 && textureIn.g == 0.0 && textureIn.b == 0.0){
         texture_a = 0.0;
        }
+
+       vec3 normalColor = vec3(float(tex_r)/255.0,float(tex_g)/255.0, float(tex_b)/255.0);
+       vec3 finalColor = mix(normalColor, selectedColor, selected);
+       gl_FragColor = vec4(finalColor.rgb, texture_a);
+      }
+      </script>
+      <script type="x-shader/x-vertex" id="vertexShaderNoTex">
+        varying vec3 vColor;
+        varying vec2 vUv;
+        void main()
+        {
+          vColor = color;
+          vUv = uv;
+          vec4 modelViewPosition = modelViewMatrix * vec4(position.xyz, 1.0);
+          gl_Position = projectionMatrix * modelViewPosition;
+        }
+      </script>
+      <script type="x-shader/x-fragment" id="fragmentShaderNoTex">
+      uniform float selected;
+      uniform vec3 selectedColor;
+      varying vec2 vUv;
+      varying vec3 vColor;
+      void main()
+      {
+       int tex_r = int(vColor.r * 255.0);
+       int tex_g = int(vColor.g * 255.0);
+       int tex_b = int(vColor.b * 255.0);
+       float texture_a = 1.0;
 
        vec3 normalColor = vec3(float(tex_r)/255.0,float(tex_g)/255.0, float(tex_b)/255.0);
        vec3 finalColor = mix(normalColor, selectedColor, selected);
@@ -219,6 +248,10 @@
           selected: { value: 0.0 },
           selectedColor: { value: new THREE.Color(rgb(255, 180, 38)) }
         };
+        var psxUniformsNoTex = {
+          selected: { value: 0.0 },
+          selectedColor: { value: new THREE.Color(rgb(255, 180, 38)) }
+        };
         var psxMaterial = new THREE.ShaderMaterial({
           transparent: true,
           alphaTest: 0.5,
@@ -227,8 +260,18 @@
           vertexColors: THREE.VertexColors,
           fragmentShader: document.getElementById('fragmentShader').textContent,
         });
+
+        //var psxMaterialNoTex = new THREE.ShaderMaterial({
+        //  transparent: true,
+        //  alphaTest: 0.5,
+        //  uniforms: psxUniformsNoTex,
+        //  vertexShader: document.getElementById('vertexShaderGouraud').textContent,
+        //  vertexColors: THREE.VertexColors,
+        //  fragmentShader: document.getElementById('fragmentShaderGouraud').textContent,
+        //});
         
         psxMaterial.needsUpdate = true;
+        //psxMaterialNoTex.needsUpdate = true;
         
         return psxMaterial;
       }
@@ -291,11 +334,16 @@
         
       }
       animate();
+
+
+      click_drag = false;
       
       
       var shaderData = {
         vertexShader: document.getElementById('vertexShader').textContent,
         fragmentShader: document.getElementById('fragmentShader').textContent,
+        vertexShaderNoTex: document.getElementById('vertexShaderNoTex').textContent,
+        fragmentShaderNoTex: document.getElementById('fragmentShaderNoTex').textContent,
       }
       
       var loader = new THREE.PSXJSONLoader();
@@ -312,11 +360,19 @@
       }, null, null, shaderData, vramContext );
       
       window.addEventListener( 'resize', onWindowResize, false );
-      window.addEventListener( "mousedown", onDocumentMouseClick, false );
+
+      window.addEventListener( 'mousedown', () => click_drag = false );
+      window.addEventListener( 'mousemove', () => click_drag = true );
+
+      window.addEventListener( 'mouseup', onDocumentMouseClick, false );
 
       //function onDocumentMouseMove( event ) {
       function onDocumentMouseClick( event ) {
         event.preventDefault();
+        if(click_drag){
+          click_drag = false;
+          return;
+        }
 
         if(event.button !== 0) return;
 
