@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "bulma": "^0.8.2",
-    "node-sass": "^4.13.1",
+    "node-sass": "^7.0.0",
     "three": "^0.112.1"
   }
 }
